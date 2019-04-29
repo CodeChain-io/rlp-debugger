@@ -75,7 +75,13 @@ class App extends React.Component<{}, AppState> {
       body = (
         <div className="App-body">
           <div>
-            <textarea id="encoded-text" placeholder="RLP encoded hex string here" value={this.state.text} onChange={this.handleTextChange} />
+            <textarea
+              id="encoded-text"
+              className="code"
+              placeholder="RLP encoded hex string here"
+              value={this.state.text}
+              onChange={this.handleTextChange}
+            />
           </div>
           <button
             id="decode-btn"
@@ -187,7 +193,8 @@ class Item extends React.Component<ItemProps, ItemState> {
     return (
       <div>
         <div>
-          {this.renderSelector()} {this.state.decoded[this.state.type]}
+          {this.renderSelector()}{" "}
+          <span className="code">{this.state.decoded[this.state.type]}</span>
         </div>
         <div />
       </div>
