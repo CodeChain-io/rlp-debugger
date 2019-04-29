@@ -1,5 +1,6 @@
 import React from "react";
 import * as RLP from "rlp";
+import { Decoder, hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./decoders";
 
 type AppState = {
   mode: "encoded" | "decoded";
@@ -129,13 +130,68 @@ function ListOrItem({ value }: { value: any }) {
   }
 }
 
-class Item extends React.Component<{ value: Buffer }> {
-  public constructor(props: { value: Buffer }) {
+type Type = "number" | "hex" | "string" | "timestamp";
+
+interface ItemProps {
+  value: Buffer;
+}
+
+interface ItemState {
+  type: Type;
+  decoded: { [key in Type]: string };
+}
+
+class Item extends React.Component<ItemProps, ItemState> {
+  public constructor(props: ItemProps) {
     super(props);
+    const decoders: [Type, Decoder][] = [
+      ["hex", hexDecoder],
+      ["string", stringDecoder],
+      ["number", numberDecoder],
+      ["timestamp", timestampDecoder],
+    ];
+
+    const decoded: { [key in Type]?: string | null } = {};
+    for (const [type, decoder] of decoders) {
+      let result = decoder(props.value);
+      decoded[type] = result;
+    }
+    this.state = {
+      type: "hex",
+      decoded: decoded as { [key in Type]: string },
+    };
+  }
+
+  private handleSelectTypeChange = (e: any) => {
+    const value: Type = e.target.value;
+    this.setState({
+      type: value,
+    });
+  };
+
+  private renderSelector() {
+    const types: Type[] = ["hex", "string", "number", "timestamp"];
+    const options = types.map((type, index) => (
+      <option key={index} value={type} disabled={this.state.decoded[type] === null}>
+        {type}
+      </option>
+    ));
+    return (
+      <select value={this.state.type} onChange={this.handleSelectTypeChange}>
+        {options}
+      </select>
+    );
   }
 
   public render() {
-    return <p>{this.props.value.toString("hex")}</p>;
+    return (
+      <div>
+        <div>
+          {this.renderSelector()} {this.state.decoded[this.state.type]}
+        </div>
+        <div />
+      </div>
+    );
   }
 }
 
