@@ -5,27 +5,63 @@ type AppState = {
   mode: "encoded" | "decoded";
   text: string;
   rlp: any;
+  decodeButton: {
+    disabled: boolean;
+    label: string;
+  };
 };
 
 class App extends React.Component<{}, AppState> {
   public constructor() {
     super({});
+
     this.state = {
       mode: "encoded",
       text: "",
-      rlp: [],
+      decodeButton: {
+        disabled: true,
+        label: "RLP is empty",
+      },
+      rlp: null,
     };
   }
 
   private handleTextChange = (e: any) => {
-    this.setState({ mode: "encoded", text: e.target.value });
+    const { value }: { value: string } = e.target;
+    let rlp;
+    let decodeButton;
+    try {
+      if (value.trim().length === 0) {
+        rlp = null;
+        decodeButton = {
+          disabled: true,
+          label: "RLP is empty",
+        };
+      } else {
+        rlp = RLP.decode(value.trim());
+        decodeButton = {
+          disabled: false,
+          label: "Decode",
+        };
+      }
+    } catch (_) {
+      rlp = null;
+      decodeButton = {
+        disabled: true,
+        label: "RLP decode error",
+      };
+    }
+
+    this.setState({
+      mode: "encoded",
+      text: value,
+      rlp,
+      decodeButton,
+    });
   };
 
   private handleClickDecode = () => {
-    this.setState(state => {
-      let rlp = RLP.decode(state.text);
-      return { mode: "decoded", rlp };
-    });
+    this.setState({ mode: "decoded" });
   };
 
   private handleClickEncode = () => {
@@ -40,8 +76,13 @@ class App extends React.Component<{}, AppState> {
           <div>
             <textarea id="encoded-text" placeholder="RLP encoded hex string here" value={this.state.text} onChange={this.handleTextChange} />
           </div>
-          <button id="decode-btn" className="decode" onClick={this.handleClickDecode}>
-            Decode
+          <button
+            id="decode-btn"
+            disabled={this.state.decodeButton.disabled}
+            className="decode"
+            onClick={this.handleClickDecode}
+          >
+            {this.state.decodeButton.label}
           </button>
         </div>
       );
