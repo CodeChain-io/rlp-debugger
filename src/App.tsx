@@ -39,7 +39,11 @@ class App extends React.Component<{}, AppState> {
           label: "RLP is empty",
         };
       } else {
-        rlp = RLP.decode(value.trim());
+        let text = value.trim();
+        if (text.startsWith("0x") === false) {
+          text = "0x" + text;
+        }
+        rlp = RLP.decode(text);
         decodeButton = {
           disabled: false,
           label: "Decode",
