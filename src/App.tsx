@@ -1,6 +1,6 @@
 import React from "react";
 import * as RLP from "rlp";
-import { Decoder, hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./decoders";
+import { hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./decoders";
 
 type AppState = {
   mode: "encoded" | "decoded";
@@ -29,17 +29,17 @@ class App extends React.Component<{}, AppState> {
 
   private handleTextChange = (e: any) => {
     const { value }: { value: string } = e.target;
+    let text = value.replace(/\s/g, "");
     let rlp;
     let decodeButton;
     try {
-      if (value.trim().length === 0) {
+      if (text.length === 0) {
         rlp = null;
         decodeButton = {
           disabled: true,
           label: "RLP is empty",
         };
       } else {
-        let text = value.trim();
         if (text.startsWith("0x") === false) {
           text = "0x" + text;
         }
@@ -148,27 +148,25 @@ interface ItemProps {
 
 interface ItemState {
   type: Type;
-  decoded: { [key in Type]: string };
+  decoded: {
+    hex: string[] | null;
+    string: string | null;
+    number: string | null;
+    timestamp: string | null;
+  };
 }
 
 class Item extends React.Component<ItemProps, ItemState> {
   public constructor(props: ItemProps) {
     super(props);
-    const decoders: [Type, Decoder][] = [
-      ["hex", hexDecoder],
-      ["string", stringDecoder],
-      ["number", numberDecoder],
-      ["timestamp", timestampDecoder],
-    ];
-
-    const decoded: { [key in Type]?: string | null } = {};
-    for (const [type, decoder] of decoders) {
-      let result = decoder(props.value);
-      decoded[type] = result;
-    }
     this.state = {
       type: "hex",
-      decoded: decoded as { [key in Type]: string },
+      decoded: {
+        hex: hexDecoder(props.value, 4),
+        string: stringDecoder(props.value),
+        number: numberDecoder(props.value),
+        timestamp: timestampDecoder(props.value)
+      }
     };
   }
 
@@ -193,12 +191,23 @@ class Item extends React.Component<ItemProps, ItemState> {
     );
   }
 
+  public renderDecoded() {
+    if (this.state.type === 'hex') {
+      return [
+        <span key="prefix">0x</span>,
+        this.state.decoded.hex!.map((x, idx) => <span key={idx} style={{ display: "inline-block", marginLeft: "0.5em" }}>{x}</span>)
+      ]
+    } else {
+      return this.state.decoded[this.state.type];
+    }
+  }
+
   public render() {
     return (
       <div>
         <div>
           {this.renderSelector()}{" "}
-          <span className="code">{this.state.decoded[this.state.type]}</span>
+          <span className="code">{this.renderDecoded()}</span>
         </div>
         <div />
       </div>
