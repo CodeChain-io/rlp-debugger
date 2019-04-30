@@ -1,9 +1,5 @@
 import BN from "bn.js";
 
-export interface Decoder {
-  (buffer: Buffer): string | null;
-}
-
 export function numberDecoder(buffer: Buffer): string | null {
   if (buffer.length > 8) {
     return null;
@@ -16,8 +12,12 @@ export function numberDecoder(buffer: Buffer): string | null {
   }
 }
 
-export function hexDecoder(buffer: Buffer): string | null {
-  return "0x" + buffer.toString("hex");
+export function hexDecoder(buffer: Buffer, groupBytes = 4): string[] | null {
+  let result = [];
+  for (let i = 0; i < buffer.length; i += groupBytes) {
+    result.push(buffer.slice(i, Math.min(i + groupBytes, buffer.length)).toString("hex"));
+  }
+  return result;
 }
 
 export function stringDecoder(bytes: Buffer, noControlChars = true): string | null {
