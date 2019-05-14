@@ -12,12 +12,8 @@ export function numberDecoder(buffer: Buffer): string | null {
   }
 }
 
-export function hexDecoder(buffer: Buffer, groupBytes = 4): string[] | null {
-  let result = [];
-  for (let i = 0; i < buffer.length; i += groupBytes) {
-    result.push(buffer.slice(i, Math.min(i + groupBytes, buffer.length)).toString("hex"));
-  }
-  return result;
+export function hexDecoder(buffer: Buffer): string | null {
+  return buffer.toString("hex");
 }
 
 export function stringDecoder(bytes: Buffer, noControlChars = true): string | null {
