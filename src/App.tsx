@@ -4,8 +4,8 @@ import { hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./de
 
 type AppState = {
   mode: "encoded" | "decoded";
-  text: string;
-  rlp: any;
+  encodedText: string;
+  plainText: any;
   decodeButton: {
     disabled: boolean;
     label: string;
@@ -18,23 +18,23 @@ class App extends React.Component<{}, AppState> {
 
     this.state = {
       mode: "encoded",
-      text: "",
+      encodedText: "",
       decodeButton: {
         disabled: true,
         label: "RLP is empty",
       },
-      rlp: null,
+      plainText: null,
     };
   }
 
   private handleTextChange = (e: any) => {
     const { value }: { value: string } = e.target;
     let text = value.replace(/\s/g, "");
-    let rlp;
+    let plainText;
     let decodeButton;
     try {
       if (text.length === 0) {
-        rlp = null;
+        plainText = null;
         decodeButton = {
           disabled: true,
           label: "RLP is empty",
@@ -43,14 +43,14 @@ class App extends React.Component<{}, AppState> {
         if (text.startsWith("0x") === false) {
           text = "0x" + text;
         }
-        rlp = RLP.decode(text);
+        plainText = RLP.decode(text);
         decodeButton = {
           disabled: false,
           label: "Decode",
         };
       }
     } catch (_) {
-      rlp = null;
+      plainText = null;
       decodeButton = {
         disabled: true,
         label: "RLP decode error",
@@ -59,8 +59,8 @@ class App extends React.Component<{}, AppState> {
 
     this.setState({
       mode: "encoded",
-      text: value,
-      rlp,
+      encodedText: value,
+      plainText,
       decodeButton,
     });
   };
@@ -83,7 +83,7 @@ class App extends React.Component<{}, AppState> {
               id="encoded-text"
               className="code"
               placeholder="RLP encoded hex string here"
-              value={this.state.text}
+              value={this.state.encodedText}
               onChange={this.handleTextChange}
             />
           </div>
@@ -101,7 +101,7 @@ class App extends React.Component<{}, AppState> {
       body = (
         <div className="App-body">
           <div>
-            <ListOrItem value={this.state.rlp} />
+            <Item value={this.state.plainText} />
           </div>
           <button id="encode-btn" className="encode" onClick={this.handleClickEncode}>
             Encode
@@ -121,29 +121,10 @@ class App extends React.Component<{}, AppState> {
   }
 }
 
-function ListOrItem({ value }: { value: any }) {
-  if (Buffer.isBuffer(value)) {
-    return <Item value={value} />;
-  } else if (Array.isArray(value)) {
-    return (
-      <div>
-        <div>[+] List({value.length})</div>
-        <div style={{ marginLeft: "1rem" }}>
-          {value.map((child, idx) => (
-            <ListOrItem key={idx} value={child} />
-          ))}
-        </div>
-      </div>
-    );
-  } else {
-    throw new Error("Invalid type");
-  }
-}
-
-type Type = "number" | "hex" | "string" | "timestamp";
+type Type = "number" | "hex" | "string" | "timestamp" | "list";
 
 interface ItemProps {
-  value: Buffer;
+  value: Buffer | Buffer[];
 }
 
 interface ItemState {
@@ -153,20 +134,41 @@ interface ItemState {
     string: string | null;
     number: string | null;
     timestamp: string | null;
+    [key: string]: string | string[] | null;
   };
+  value: Buffer | Buffer[];
 }
 
 class Item extends React.Component<ItemProps, ItemState> {
   public constructor(props: ItemProps) {
     super(props);
-    this.state = {
-      type: "hex",
-      decoded: {
+    let type: Type;
+    let decoded;
+
+    if (Buffer.isBuffer(props.value)) {
+      type = "hex";
+      decoded = {
         hex: hexDecoder(props.value, 4),
         string: stringDecoder(props.value),
         number: numberDecoder(props.value),
-        timestamp: timestampDecoder(props.value)
-      }
+        timestamp: timestampDecoder(props.value),
+      };
+    } else if (Array.isArray(props.value)) {
+      type = "list";
+      decoded = {
+        hex: null,
+        string: null,
+        number: null,
+        timestamp: null,
+      };
+    } else {
+      throw Error("Invalid type");
+    }
+
+    this.state = {
+      type,
+      decoded,
+      value: props.value,
     };
   }
 
@@ -192,26 +194,46 @@ class Item extends React.Component<ItemProps, ItemState> {
   }
 
   public renderDecoded() {
-    if (this.state.type === 'hex') {
+    if (this.state.type === "hex") {
       return [
         <span key="prefix">0x</span>,
-        this.state.decoded.hex!.map((x, idx) => <span key={idx} style={{ display: "inline-block", marginLeft: "0.5em" }}>{x}</span>)
-      ]
+        this.state.decoded.hex!.map((x, idx) => (
+          <span key={idx} style={{ display: "inline-block", marginLeft: "0.5em" }}>
+            {x}
+          </span>
+        )),
+      ];
     } else {
       return this.state.decoded[this.state.type];
     }
   }
 
   public render() {
-    return (
-      <div>
+    if (this.state.type === "list") {
+      if (Array.isArray(this.state.value)) {
+        return (
+          <div>
+            <div>[+] List({this.state.value.length})</div>
+            <div style={{ marginLeft: "1rem" }}>
+              {this.state.value.map((child, idx) => (
+                <Item key={idx} value={child} />
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        throw Error("Invalid array value");
+      }
+    } else {
+      return (
         <div>
-          {this.renderSelector()}{" "}
-          <span className="code">{this.renderDecoded()}</span>
+          <div>
+            {this.renderSelector()} <span className="code">{this.renderDecoded()}</span>
+          </div>
+          <div />
         </div>
-        <div />
-      </div>
-    );
+      );
+    }
   }
 }
 
