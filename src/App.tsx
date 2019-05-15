@@ -75,26 +75,34 @@ class App extends React.Component<{}, AppState> {
     });
   };
 
-  private handlePlainTextChange = (_: number, value: any) => {
+  private handlePlainTextChange = (_: number, value: any, disabled: boolean) => {
     let encodeButton;
     let encodedText;
 
-    try {
-      encodedText = RLP.encode(value).toString("hex");
-      this.setState({
-        encodedText,
-      });
+    if (!disabled) {
+      try {
+        encodedText = RLP.encode(value).toString("hex");
+        this.setState({
+          encodedText,
+        });
 
-      encodeButton = {
-        disabled: false,
-        label: "Encode",
-      };
-    } catch (__) {
+        encodeButton = {
+          disabled: false,
+          label: "Encode",
+        };
+      } catch (__) {
+        encodeButton = {
+          disabled: true,
+          label: "RLP encode error",
+        };
+      }
+    } else {
       encodeButton = {
         disabled: true,
         label: "RLP encode error",
       };
     }
+
     this.setState({
       encodeButton,
       plainText: value,
@@ -166,7 +174,7 @@ type Type = "number" | "hex" | "string" | "timestamp" | "list";
 
 interface ItemProps {
   value: Buffer | any[];
-  handler: (index: number, value: any) => any;
+  handler: (index: number, value: any, disabled: boolean) => any;
   idx: number;
 }
 
@@ -180,6 +188,7 @@ interface ItemState {
     [key: string]: string | null;
   };
   value: Buffer | any[] | null;
+  disabled: Set<number>;
 }
 
 class Item extends React.Component<ItemProps, ItemState> {
@@ -220,20 +229,32 @@ class Item extends React.Component<ItemProps, ItemState> {
       type,
       decoded,
       value: props.value,
+      disabled: new Set(),
     };
   }
 
-  private valueHandler = (index: number, value: any) => {
+  private valueHandler = (index: number, value: any, disabled: boolean) => {
     if (this.state.type !== "list") {
       throw Error("Invalid type");
     }
 
     let itemValue = this.state.value as any[];
     itemValue[index] = value;
+    let disabledSet = this.state.disabled;
 
-    this.setState({ value: itemValue });
+    if (disabled) {
+      this.props.handler(this.props.idx, itemValue, true);
+      disabledSet.add(index);
+    } else {
+      disabledSet.delete(index);
+      if (disabledSet.size === 0) {
+        this.props.handler(this.props.idx, itemValue, false);
+      } else {
+        this.props.handler(this.props.idx, itemValue, true);
+      }
+    }
 
-    this.props.handler(this.props.idx, itemValue);
+    this.setState({ value: itemValue, disabled: disabledSet });
   };
 
   private handleTextChange = (e: any) => {
@@ -271,12 +292,16 @@ class Item extends React.Component<ItemProps, ItemState> {
       value: itemValue,
     });
 
-    this.props.handler(this.props.idx, itemValue);
+    if (itemValue === null) {
+      this.props.handler(this.props.idx, itemValue, true);
+    } else {
+      this.props.handler(this.props.idx, itemValue, false);
+    }
   };
 
   private handleSelectTypeChange = (e: any) => {
     const value: Type = e.target.value;
-    let itemValue = this.state.value;
+    let itemValue;
 
     if (value === "hex") {
       itemValue = hexEncoder(this.state.decoded.hex as string);
@@ -301,7 +326,11 @@ class Item extends React.Component<ItemProps, ItemState> {
       value: itemValue,
     });
 
-    this.props.handler(this.props.idx, itemValue);
+    if (itemValue === null) {
+      this.props.handler(this.props.idx, itemValue, true);
+    } else {
+      this.props.handler(this.props.idx, itemValue, false);
+    }
   };
 
   private renderSelector() {
