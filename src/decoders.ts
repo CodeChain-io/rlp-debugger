@@ -67,6 +67,11 @@ export function timestampDecoder(buffer: Buffer): string | null {
   if (buffer.length > 4) {
     return null;
   }
-  const timestamp = buffer.reduce((accum, byte) => (accum << 8) + byte);
-  return new Date(timestamp * 1000).toISOString();
+
+  try {
+    const timestamp = buffer.reduce((accum, byte) => (accum << 8) + byte);
+    return new Date(timestamp * 1000).toISOString();
+  } catch (_) {
+    return null;
+  }
 }
