@@ -14,7 +14,7 @@ export function numberEncoder(string: string): Buffer | null {
 
 export function hexEncoder(string: string): Buffer | null {
   try {
-    return Buffer.from(string, "hex");
+    return Buffer.from(string.slice(2), "hex");
   } catch (_) {
     return null;
   }

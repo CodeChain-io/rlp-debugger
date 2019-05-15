@@ -2,6 +2,7 @@ import React from "react";
 import * as RLP from "rlp";
 import { hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./decoders";
 import { hexEncoder, numberEncoder, stringEncoder, timestampEncoder } from "./encoders";
+import { isNull } from "util";
 
 type AppState = {
   mode: "encoded" | "decoded";
@@ -74,27 +75,29 @@ class App extends React.Component<{}, AppState> {
     });
   };
 
-  private handlePlainTextChange = () => {
+  private handlePlainTextChange = (_: number, value: any) => {
     let encodeButton;
     let encodedText;
 
     try {
-      encodedText = RLP.encode(this.state.plainText).toString("hex");
+      encodedText = RLP.encode(value).toString("hex");
+      this.setState({
+        encodedText,
+      });
+
       encodeButton = {
         disabled: false,
         label: "Encode",
       };
-    } catch (_) {
-      encodedText = this.state.encodedText;
+    } catch (__) {
       encodeButton = {
         disabled: true,
         label: "RLP encode error",
       };
     }
-
     this.setState({
-      encodedText,
       encodeButton,
+      plainText: value,
     });
   };
 
@@ -134,7 +137,7 @@ class App extends React.Component<{}, AppState> {
       body = (
         <div className="App-body">
           <div>
-            <Item value={this.state.plainText} />
+            <Item idx={0} value={this.state.plainText} handler={this.handlePlainTextChange} />
           </div>
           <button
             id="encode-btn"
@@ -162,7 +165,9 @@ class App extends React.Component<{}, AppState> {
 type Type = "number" | "hex" | "string" | "timestamp" | "list";
 
 interface ItemProps {
-  value: Buffer | Buffer[];
+  value: Buffer | any[];
+  handler: (index: number, value: any) => any;
+  idx: number;
 }
 
 interface ItemState {
@@ -174,7 +179,7 @@ interface ItemState {
     timestamp: string | null;
     [key: string]: string | null;
   };
-  value: Buffer | Buffer[] | null;
+  value: Buffer | any[] | null;
 }
 
 class Item extends React.Component<ItemProps, ItemState> {
@@ -183,7 +188,15 @@ class Item extends React.Component<ItemProps, ItemState> {
     let type: Type;
     let decoded;
 
-    if (Buffer.isBuffer(props.value)) {
+    if (Array.isArray(props.value)) {
+      type = "list";
+      decoded = {
+        hex: null,
+        string: null,
+        number: null,
+        timestamp: null,
+      };
+    } else if (Buffer.isBuffer(props.value)) {
       type = "hex";
       decoded = {
         hex: hexDecoder(props.value),
@@ -191,10 +204,10 @@ class Item extends React.Component<ItemProps, ItemState> {
         number: numberDecoder(props.value),
         timestamp: timestampDecoder(props.value),
       };
-    } else if (Array.isArray(props.value)) {
-      type = "list";
+    } else if (isNull(props.value)) {
+      type = "hex";
       decoded = {
-        hex: null,
+        hex: "0x80",
         string: null,
         number: null,
         timestamp: null,
@@ -209,6 +222,19 @@ class Item extends React.Component<ItemProps, ItemState> {
       value: props.value,
     };
   }
+
+  private valueHandler = (index: number, value: any) => {
+    if (this.state.type !== "list") {
+      throw Error("Invalid type");
+    }
+
+    let itemValue = this.state.value as any[];
+    itemValue[index] = value;
+
+    this.setState({ value: itemValue });
+
+    this.props.handler(this.props.idx, itemValue);
+  };
 
   private handleTextChange = (e: any) => {
     const { value }: { value: string } = e.target;
@@ -244,6 +270,8 @@ class Item extends React.Component<ItemProps, ItemState> {
       },
       value: itemValue,
     });
+
+    this.props.handler(this.props.idx, itemValue);
   };
 
   private handleSelectTypeChange = (e: any) => {
@@ -272,6 +300,8 @@ class Item extends React.Component<ItemProps, ItemState> {
       },
       value: itemValue,
     });
+
+    this.props.handler(this.props.idx, itemValue);
   };
 
   private renderSelector() {
@@ -304,7 +334,7 @@ class Item extends React.Component<ItemProps, ItemState> {
             <div>[+] List({this.state.value.length})</div>
             <div style={{ marginLeft: "1rem" }}>
               {this.state.value.map((child, idx) => (
-                <Item key={idx} value={child} />
+                <Item key={idx} idx={idx} value={child} handler={this.valueHandler} />
               ))}
             </div>
           </div>
