@@ -19,9 +19,14 @@ body {
   color: white;
 }
 
+.App-body {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
 #encoded-text {
   width: 100%;
-  min-height:24em;
+  min-height: 24em;
   box-sizing: border-box;
   -moz-box-sizing: border-box;
   -webkit-box-sizing: border-box;
@@ -32,4 +37,27 @@ body {
     monospace;
   word-wrap: break-word;
   word-break: keep-all;
+  display: inline-block;
+}
+
+.element {
+  height: 45px;
+}
+
+.selector {
+  display: inline-block;
+}
+
+.buttons {
+  display: inline-block;
+  margin-left: 1em;
+}
+
+.decoded-text {
+  display: inline-block;
+  margin-left: 1em;
+}
+
+.list {
+  display: inline-block;
 }

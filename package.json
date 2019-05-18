@@ -11,6 +11,7 @@
     "@types/react-dom": "16.8.4",
     "bn.js": "^4.11.8",
     "react": "^16.8.6",
+    "react-bootstrap": "^1.0.0-beta.8",
     "react-dom": "^16.8.6",
     "react-scripts": "3.0.0",
     "rlp": "^2.2.3",
