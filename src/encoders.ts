@@ -6,7 +6,8 @@ export function numberEncoder(string: string): Buffer | null {
   }
   try {
     const bn = new BN(+string);
-    return Buffer.from(bn.toString("hex"), "hex");
+    const hexString = bn.toString("hex");
+    return Buffer.from(hexString.length % 2 === 1 ? "0" + hexString : hexString, "hex");
   } catch (e) {
     return null;
   }
@@ -14,7 +15,10 @@ export function numberEncoder(string: string): Buffer | null {
 
 export function hexEncoder(string: string): Buffer | null {
   try {
-    return Buffer.from(string.slice(2), "hex");
+    return Buffer.from(
+      string.slice(2).length % 2 === 1 ? "0" + string.slice(2) : string.slice(2),
+      "hex",
+    );
   } catch (_) {
     return null;
   }

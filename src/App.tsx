@@ -3,6 +3,7 @@ import * as RLP from "rlp";
 import { hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./decoders";
 import { hexEncoder, numberEncoder, stringEncoder, timestampEncoder } from "./encoders";
 import { isNull } from "util";
+import { Button } from "react-bootstrap";
 
 type AppState = {
   mode: "encoded" | "decoded";
@@ -16,6 +17,7 @@ type AppState = {
     disabled: boolean;
     label: string;
   };
+  change: boolean;
 };
 
 class App extends React.Component<{}, AppState> {
@@ -34,6 +36,7 @@ class App extends React.Component<{}, AppState> {
         disabled: false,
         label: "Encode",
       },
+      change: false,
     };
   }
 
@@ -75,27 +78,40 @@ class App extends React.Component<{}, AppState> {
     });
   };
 
-  private handlePlainTextChange = (_: number, value: any, disabled: boolean) => {
-    let encodeButton;
-    let encodedText;
+  private handlePlainTextChange = (
+    _: number,
+    value: any,
+    disabled: boolean,
+    edit: Edit,
+    rebuild: boolean,
+  ) => {
+    let encodeButton: any;
+    let encodedText: any;
+    let plain = value;
 
     if (!disabled) {
+      if (edit === "change") {
+        plain = [this.state.plainText];
+      }
+
       try {
-        encodedText = RLP.encode(value).toString("hex");
+        encodedText = RLP.encode(plain).toString("hex");
+
         this.setState({
           encodedText,
+          plainText: plain,
         });
-
-        encodeButton = {
-          disabled: false,
-          label: "Encode",
-        };
       } catch (__) {
         encodeButton = {
           disabled: true,
           label: "RLP encode error",
         };
       }
+
+      encodeButton = {
+        disabled: false,
+        label: "Encode",
+      };
     } else {
       encodeButton = {
         disabled: true,
@@ -105,8 +121,13 @@ class App extends React.Component<{}, AppState> {
 
     this.setState({
       encodeButton,
-      plainText: value,
     });
+
+    if (rebuild) {
+      this.setState((state, _props) => ({
+        change: !state.change,
+      }));
+    }
   };
 
   private handleClickDecode = () => {
@@ -125,36 +146,44 @@ class App extends React.Component<{}, AppState> {
           <div>
             <textarea
               id="encoded-text"
-              className="code"
+              className="code form-control"
               placeholder="RLP encoded hex string here"
               value={this.state.encodedText}
               onChange={this.handleEncodedTextChange}
             />
           </div>
-          <button
-            id="decode-btn"
+          <Button
+            variant="primary"
+            size="lg"
+            block
             disabled={this.state.decodeButton.disabled}
-            className="decode"
             onClick={this.handleClickDecode}
           >
             {this.state.decodeButton.label}
-          </button>
+          </Button>
         </div>
       );
     } else if (this.state.mode === "decoded") {
       body = (
         <div className="App-body">
           <div>
-            <Item idx={0} value={this.state.plainText} handler={this.handlePlainTextChange} />
+            <Item
+              key={this.state.change ? "true" : "false"}
+              idx={0}
+              value={this.state.plainText}
+              handler={this.handlePlainTextChange}
+              fromList={false}
+            />
           </div>
-          <button
-            id="encode-btn"
+          <Button
+            variant="primary"
+            size="lg"
+            block
             disabled={this.state.encodeButton.disabled}
-            className="encode"
             onClick={this.handleClickEncode}
           >
             {this.state.encodeButton.label}
-          </button>
+          </Button>
         </div>
       );
     }
@@ -172,10 +201,13 @@ class App extends React.Component<{}, AppState> {
 
 type Type = "number" | "hex" | "string" | "timestamp" | "list";
 
+type Edit = "add" | "remove" | "change" | "null";
+
 interface ItemProps {
   value: Buffer | any[];
-  handler: (index: number, value: any, disabled: boolean) => any;
+  handler: (index: number, value: any, disabled: boolean, edit: Edit, rebuild: boolean) => any;
   idx: number;
+  fromList: boolean;
 }
 
 interface ItemState {
@@ -196,7 +228,6 @@ class Item extends React.Component<ItemProps, ItemState> {
     super(props);
     let type: Type;
     let decoded;
-
     if (Array.isArray(props.value)) {
       type = "list";
       decoded = {
@@ -233,24 +264,42 @@ class Item extends React.Component<ItemProps, ItemState> {
     };
   }
 
-  private valueHandler = (index: number, value: any, disabled: boolean) => {
+  private valueHandler = (
+    index: number,
+    value: any,
+    disabled: boolean,
+    edit: Edit,
+    rebuild: boolean,
+  ) => {
     if (this.state.type !== "list") {
       throw Error("Invalid type");
     }
 
     let itemValue = this.state.value as any[];
-    itemValue[index] = value;
     let disabledSet = this.state.disabled;
 
     if (disabled) {
-      this.props.handler(this.props.idx, itemValue, true);
+      this.props.handler(this.props.idx, itemValue, true, "null", rebuild);
       disabledSet.add(index);
     } else {
+      if (edit === "null") {
+        itemValue[index] = value;
+      } else if (edit === "add") {
+        itemValue.splice(index + 1, 0, Buffer.from("0x00", "hex"));
+      } else if (edit === "remove") {
+        itemValue.splice(index, 1);
+      } else if (edit === "change") {
+        if (Array.isArray(itemValue[index])) {
+          throw Error("Invalid type");
+        }
+
+        itemValue[index] = [itemValue[index]];
+      }
       disabledSet.delete(index);
       if (disabledSet.size === 0) {
-        this.props.handler(this.props.idx, itemValue, false);
+        this.props.handler(this.props.idx, itemValue, false, "null", rebuild);
       } else {
-        this.props.handler(this.props.idx, itemValue, true);
+        this.props.handler(this.props.idx, itemValue, true, "null", rebuild);
       }
     }
 
@@ -266,17 +315,34 @@ class Item extends React.Component<ItemProps, ItemState> {
     let itemValue = this.state.value;
 
     if (this.state.type === "hex") {
+      console.log(value);
       hex = value;
       itemValue = hexEncoder(value);
+
+      string = itemValue === null ? null : stringDecoder(itemValue);
+      number = itemValue === null ? null : numberDecoder(itemValue);
+      timestamp = itemValue === null ? null : timestampDecoder(itemValue);
     } else if (this.state.type === "string") {
       string = value;
       itemValue = stringEncoder(value);
+
+      hex = itemValue === null ? null : hexDecoder(itemValue);
+      number = itemValue === null ? null : numberDecoder(itemValue);
+      timestamp = itemValue === null ? null : timestampDecoder(itemValue);
     } else if (this.state.type === "number") {
       number = value;
       itemValue = numberEncoder(value);
+
+      hex = itemValue === null ? null : hexDecoder(itemValue);
+      string = itemValue === null ? null : stringDecoder(itemValue);
+      timestamp = itemValue === null ? null : timestampDecoder(itemValue);
     } else if (this.state.type === "timestamp") {
       timestamp = value;
       itemValue = timestampEncoder(value);
+
+      hex = itemValue === null ? null : hexDecoder(itemValue);
+      string = itemValue === null ? null : stringDecoder(itemValue);
+      number = itemValue === null ? null : numberDecoder(itemValue);
     } else {
       throw Error("Invalid type");
     }
@@ -293,55 +359,45 @@ class Item extends React.Component<ItemProps, ItemState> {
     });
 
     if (itemValue === null) {
-      this.props.handler(this.props.idx, itemValue, true);
+      this.props.handler(this.props.idx, itemValue, true, "null", false);
     } else {
-      this.props.handler(this.props.idx, itemValue, false);
+      this.props.handler(this.props.idx, itemValue, false, "null", false);
     }
   };
 
   private handleSelectTypeChange = (e: any) => {
-    const value: Type = e.target.value;
     let itemValue;
-
-    if (value === "hex") {
-      itemValue = hexEncoder(this.state.decoded.hex as string);
-    } else if (value === "string") {
-      itemValue = stringEncoder(this.state.decoded.string as string);
-    } else if (value === "number") {
-      itemValue = numberEncoder(this.state.decoded.number as string);
-    } else if (value === "timestamp") {
-      itemValue = timestampEncoder(this.state.decoded.timestamp as string);
+    if (e.target.value === "hex") {
+      itemValue = this.state.decoded.hex === null ? null : hexEncoder(this.state.decoded.hex)
+    } else if (e.target.value === "string") {
+      itemValue = this.state.decoded.string === null ? null : stringEncoder(this.state.decoded.string)
+    } else if (e.target.valid === "number") {
+      itemValue = this.state.decoded.number === null ? null : numberEncoder(this.state.decoded.number)
     } else {
-      throw Error("Invalid type");
+      itemValue = this.state.decoded.timestamp === null ? null : timestampEncoder(this.state.decoded.timestamp)
     }
 
     this.setState({
-      type: value,
-      decoded: {
-        hex: this.state.decoded.hex,
-        string: this.state.decoded.string,
-        number: this.state.decoded.number,
-        timestamp: this.state.decoded.timestamp,
-      },
-      value: itemValue,
+      type: e.target.value,
+      value: itemValue
     });
 
-    if (itemValue === null) {
-      this.props.handler(this.props.idx, itemValue, true);
-    } else {
-      this.props.handler(this.props.idx, itemValue, false);
-    }
+    this.props.handler(this.props.idx, itemValue, false, "null", false);
   };
 
   private renderSelector() {
     const types: Type[] = ["hex", "string", "number", "timestamp"];
     const options = types.map((type, index) => (
-      <option key={index} value={type} disabled={this.state.decoded[type] === null}>
+      <option key={index} value={type}>
         {type}
       </option>
     ));
     return (
-      <select value={this.state.type} onChange={this.handleSelectTypeChange}>
+      <select
+        className="browser-default custom-select"
+        value={this.state.type}
+        onChange={this.handleSelectTypeChange}
+      >
         {options}
       </select>
     );
@@ -355,15 +411,67 @@ class Item extends React.Component<ItemProps, ItemState> {
     }
   }
 
+  private handleAdd = () => {
+    this.props.handler(this.props.idx, null, false, "add", true);
+  };
+
+  private handleRemove = () => {
+    this.props.handler(this.props.idx, null, false, "remove", true);
+  };
+
+  private handleChange = () => {
+    this.props.handler(this.props.idx, null, false, "change", true);
+  };
+
+  private handleListAdd = () => {
+    this.props.handler(this.props.idx, null, false, "add", true);
+  };
+
+  private handleListAddInsert = () => {
+    let itemValue = this.state.value as any[];
+    itemValue.splice(0, 0, Buffer.from("0x00", "hex"));
+    this.props.handler(this.props.idx, itemValue, false, "null", true);
+    this.setState({ value: itemValue });
+  };
+
+  private handleListRemove = () => {
+    this.props.handler(this.props.idx, null, false, "remove", true);
+  };
+
   public render() {
     if (this.state.type === "list") {
       if (Array.isArray(this.state.value)) {
         return (
           <div>
-            <div>[+] List({this.state.value.length})</div>
+            <div style={{ height: "45px" }}>
+              <div className="list">[+] List({this.state.value.length})</div>
+              <div className="buttons">
+                {this.props.fromList ? (
+                  <Button variant="outline-primary" onClick={this.handleListAdd}>
+                    +
+                  </Button>
+                ) : null}
+                <Button
+                  variant="outline-danger"
+                  onClick={this.handleListRemove}
+                  style={{ marginLeft: "0.5rem" }}
+                >
+                  -
+                </Button>
+              </div>
+            </div>
             <div style={{ marginLeft: "1rem" }}>
+              <Button variant="outline-info" onClick={this.handleListAddInsert}>
+                +
+              </Button>
               {this.state.value.map((child, idx) => (
-                <Item key={idx} idx={idx} value={child} handler={this.valueHandler} />
+                <Item
+                  key={idx}
+                  idx={idx}
+                  value={child}
+                  handler={this.valueHandler}
+                  fromList={true}
+                />
               ))}
             </div>
           </div>
@@ -372,25 +480,54 @@ class Item extends React.Component<ItemProps, ItemState> {
         throw Error("Invalid type");
       }
     } else {
+<<<<<<< Updated upstream
       let decodedValue = this.renderDecoded();
       decodedValue = decodedValue === null ? "" : decodedValue;
       if (this.state.type === "hex") {
         decodedValue = decodedValue.startsWith("0x") ? decodedValue : "0x" + decodedValue;
+=======
+      let decodedValue = this.state.decoded[this.state.type];
+      if (decodedValue === null) {
+        decodedValue = ""
+>>>>>>> Stashed changes
       }
 
       return (
         <div>
-          <div>
-            {this.renderSelector()}{" "}
-            <span className="code">
-              <textarea
-                className="decoded-text"
+          <div className="element">
+            <div className="selector">{this.renderSelector()} </div>
+            <div className="decoded-text">
+              <input
+                className="form-control"
                 value={decodedValue}
                 onChange={this.handleTextChange}
               />
-            </span>
+            </div>
+            {this.props.fromList ? (
+              <div className="buttons">
+                <Button variant="outline-primary" onClick={this.handleAdd}>
+                  +
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  onClick={this.handleRemove}
+                  style={{ marginLeft: "0.5rem" }}
+                >
+                  -
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="buttons">
+              <Button
+                variant="outline-success"
+                onClick={this.handleChange}
+                style={{ marginLeft: "0.5rem" }}
+              >
+                List
+              </Button>
+            </div>
           </div>
-          <div />
         </div>
       );
     }
