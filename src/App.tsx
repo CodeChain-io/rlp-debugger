@@ -8,6 +8,8 @@ import { Button } from "react-bootstrap";
 type AppState = {
   mode: "encoded" | "decoded";
   encodedText: string;
+  // Single source of truth for rlp decoded text.
+  // If there are any changes in child components, they are lifted up to this source of truth
   plainText: any;
   decodeButton: {
     disabled: boolean;
@@ -17,6 +19,7 @@ type AppState = {
     disabled: boolean;
     label: string;
   };
+  // For re-rendering item list
   change: boolean;
 };
 
@@ -45,6 +48,7 @@ class App extends React.Component<{}, AppState> {
     let text = value.replace(/\s/g, "");
     let plainText;
     let decodeButton;
+
     try {
       if (text.length === 0) {
         plainText = null;
@@ -89,6 +93,7 @@ class App extends React.Component<{}, AppState> {
     let encodedText: any;
     let plain = value;
 
+    // Change the source of truth only when a change is valid
     if (!disabled) {
       if (edit === "change") {
         plain = [this.state.plainText];
@@ -123,6 +128,7 @@ class App extends React.Component<{}, AppState> {
       encodeButton,
     });
 
+    // Re-render the source of truth if one of add, remove, list change occurs
     if (rebuild) {
       this.setState((state, _props) => ({
         change: !state.change,
@@ -199,12 +205,17 @@ class App extends React.Component<{}, AppState> {
   }
 }
 
+// String(number | hex | string | timestamp), List
 type Type = "number" | "hex" | "string" | "timestamp" | "list";
 
+// add - add element in front of corresponding element
+// remove - remove the corresponding lement
+// change - change a string to the list
 type Edit = "add" | "remove" | "change" | "null";
 
 interface ItemProps {
   value: Buffer | any[];
+  // parent handler for lifting state up
   handler: (index: number, value: any, disabled: boolean, edit: Edit, rebuild: boolean) => any;
   idx: number;
   fromList: boolean;
@@ -219,7 +230,9 @@ interface ItemState {
     timestamp: string | null;
     [key: string]: string | null;
   };
+  // temporary value which sync with the parent's state
   value: Buffer | any[] | null;
+  // A set of indices which the corresponding is not valid
   disabled: Set<number>;
 }
 
@@ -228,6 +241,7 @@ class Item extends React.Component<ItemProps, ItemState> {
     super(props);
     let type: Type;
     let decoded;
+
     if (Array.isArray(props.value)) {
       type = "list";
       decoded = {
@@ -264,6 +278,7 @@ class Item extends React.Component<ItemProps, ItemState> {
     };
   }
 
+  // Handler for lifting state up
   private valueHandler = (
     index: number,
     value: any,
@@ -271,6 +286,7 @@ class Item extends React.Component<ItemProps, ItemState> {
     edit: Edit,
     rebuild: boolean,
   ) => {
+    // Only a list gets editing events from child elements
     if (this.state.type !== "list") {
       throw Error("Invalid type");
     }
@@ -278,8 +294,10 @@ class Item extends React.Component<ItemProps, ItemState> {
     let itemValue = this.state.value as any[];
     let disabledSet = this.state.disabled;
 
+    // Do nothing if editing event is invalid
     if (disabled) {
       this.props.handler(this.props.idx, itemValue, true, "null", rebuild);
+      // Include the corresponding element into the invlid element list
       disabledSet.add(index);
     } else {
       if (edit === "null") {
@@ -295,6 +313,7 @@ class Item extends React.Component<ItemProps, ItemState> {
 
         itemValue[index] = [itemValue[index]];
       }
+      // Extract valid element's index which is not invalid anymore
       disabledSet.delete(index);
       if (disabledSet.size === 0) {
         this.props.handler(this.props.idx, itemValue, false, "null", rebuild);
@@ -314,6 +333,8 @@ class Item extends React.Component<ItemProps, ItemState> {
     let timestamp = this.state.decoded.timestamp;
     let itemValue = this.state.value;
 
+    // sync between 4 options
+    // If the changed value is invalid, only update the correspoding option's value and set null for others
     if (this.state.type === "hex") {
       console.log(value);
       hex = value;
@@ -358,6 +379,7 @@ class Item extends React.Component<ItemProps, ItemState> {
       value: itemValue,
     });
 
+    // lift state up only when a valid change occurs
     if (itemValue === null) {
       this.props.handler(this.props.idx, itemValue, true, "null", false);
     } else {
