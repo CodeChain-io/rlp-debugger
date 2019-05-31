@@ -252,8 +252,12 @@ class Item extends React.Component<ItemProps, ItemState> {
       };
     } else if (Buffer.isBuffer(props.value)) {
       type = "hex";
+      const hexString = hexDecoder(props.value);
       decoded = {
-        hex: hexDecoder(props.value),
+        hex:
+          hexString === null
+            ? null
+            : hexString.replace(/(\w{4})/g, "$1 ").replace(/(^\s+|\s+$)/, ""),
         string: stringDecoder(props.value),
         number: numberDecoder(props.value),
         timestamp: timestampDecoder(props.value),
@@ -338,7 +342,7 @@ class Item extends React.Component<ItemProps, ItemState> {
     if (this.state.type === "hex") {
       console.log(value);
       hex = value;
-      itemValue = hexEncoder(value);
+      itemValue = hexEncoder(value.startsWith("0x") ? value : "0x" + value);
 
       string = itemValue === null ? null : stringDecoder(itemValue);
       number = itemValue === null ? null : numberDecoder(itemValue);
@@ -390,18 +394,23 @@ class Item extends React.Component<ItemProps, ItemState> {
   private handleSelectTypeChange = (e: any) => {
     let itemValue;
     if (e.target.value === "hex") {
-      itemValue = this.state.decoded.hex === null ? null : hexEncoder(this.state.decoded.hex)
+      itemValue = this.state.decoded.hex === null ? null : hexEncoder(this.state.decoded.hex);
     } else if (e.target.value === "string") {
-      itemValue = this.state.decoded.string === null ? null : stringEncoder(this.state.decoded.string)
+      itemValue =
+        this.state.decoded.string === null ? null : stringEncoder(this.state.decoded.string);
     } else if (e.target.valid === "number") {
-      itemValue = this.state.decoded.number === null ? null : numberEncoder(this.state.decoded.number)
+      itemValue =
+        this.state.decoded.number === null ? null : numberEncoder(this.state.decoded.number);
     } else {
-      itemValue = this.state.decoded.timestamp === null ? null : timestampEncoder(this.state.decoded.timestamp)
+      itemValue =
+        this.state.decoded.timestamp === null
+          ? null
+          : timestampEncoder(this.state.decoded.timestamp);
     }
 
     this.setState({
       type: e.target.value,
-      value: itemValue
+      value: itemValue,
     });
 
     this.props.handler(this.props.idx, itemValue, false, "null", false);
@@ -423,14 +432,6 @@ class Item extends React.Component<ItemProps, ItemState> {
         {options}
       </select>
     );
-  }
-
-  public renderDecoded() {
-    if (this.state.type === "hex") {
-      return this.state.decoded.hex;
-    } else {
-      return this.state.decoded[this.state.type];
-    }
   }
 
   private handleAdd = () => {
@@ -502,16 +503,9 @@ class Item extends React.Component<ItemProps, ItemState> {
         throw Error("Invalid type");
       }
     } else {
-<<<<<<< Updated upstream
-      let decodedValue = this.renderDecoded();
-      decodedValue = decodedValue === null ? "" : decodedValue;
-      if (this.state.type === "hex") {
-        decodedValue = decodedValue.startsWith("0x") ? decodedValue : "0x" + decodedValue;
-=======
       let decodedValue = this.state.decoded[this.state.type];
       if (decodedValue === null) {
-        decodedValue = ""
->>>>>>> Stashed changes
+        decodedValue = "";
       }
 
       return (
