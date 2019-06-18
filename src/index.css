@@ -21,7 +21,8 @@ body {
 
 .App-body {
   margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  position: relative;
+  min-height: 100vh;
 }
 
 #encoded-text {
@@ -60,4 +61,8 @@ body {
 
 .list {
   display: inline-block;
+}
+
+.body {
+  padding-bottom: 200px;
 }

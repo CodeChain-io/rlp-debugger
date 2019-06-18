@@ -1,0 +1,56 @@
+@import "../styles/variables.scss";
+@import "../styles/mixin.scss";
+
+.Footer {
+  background-color: $dark-slate-blue;
+  color: white;
+  padding: 32px 0 32px 0;
+  font-size: 0.77rem;
+
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 1rem;
+
+
+  .link-icon-container {
+    text-align: right;
+
+    .link-icon {
+      cursor: pointer;
+    }
+
+    @include respond-below(sm) {
+      text-align: left;
+      margin-top: 32px;
+    }
+  }
+
+  .link-container {
+    font-size: 0.88rem;
+    margin-top: 44px;
+    font-weight: bold;
+
+    .link-item-col {
+      display: inline-block;
+      vertical-align: top;
+      margin-right: 40px;
+
+      .link-item:hover {
+        cursor: pointer;
+      }
+    }
+
+    @include respond-below(sm) {
+      & {
+        margin-top: 72px;
+      }
+
+      .link-item-col {
+        display: block;
+        margin-bottom: 28px;
+      }
+    }
+  }
+}
