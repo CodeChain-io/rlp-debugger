@@ -4,6 +4,7 @@ import { hexDecoder, numberDecoder, stringDecoder, timestampDecoder } from "./de
 import { hexEncoder, numberEncoder, stringEncoder, timestampEncoder } from "./encoders";
 import { isNull } from "util";
 import { Button } from "react-bootstrap";
+import Footer from "./Footer/Footer";
 
 type AppState = {
   mode: "encoded" | "decoded";
@@ -149,7 +150,7 @@ class App extends React.Component<{}, AppState> {
     if (this.state.mode === "encoded") {
       body = (
         <div className="App-body">
-          <div>
+          <div className="body">
             <textarea
               id="encoded-text"
               className="code form-control"
@@ -157,22 +158,23 @@ class App extends React.Component<{}, AppState> {
               value={this.state.encodedText}
               onChange={this.handleEncodedTextChange}
             />
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              disabled={this.state.decodeButton.disabled}
+              onClick={this.handleClickDecode}
+            >
+              {this.state.decodeButton.label}
+            </Button>
           </div>
-          <Button
-            variant="primary"
-            size="lg"
-            block
-            disabled={this.state.decodeButton.disabled}
-            onClick={this.handleClickDecode}
-          >
-            {this.state.decodeButton.label}
-          </Button>
+          <Footer />
         </div>
       );
     } else if (this.state.mode === "decoded") {
       body = (
         <div className="App-body">
-          <div>
+          <div className="body">
             <Item
               key={this.state.change ? "true" : "false"}
               idx={0}
@@ -180,16 +182,17 @@ class App extends React.Component<{}, AppState> {
               handler={this.handlePlainTextChange}
               fromList={false}
             />
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              disabled={this.state.encodeButton.disabled}
+              onClick={this.handleClickEncode}
+            >
+              {this.state.encodeButton.label}
+            </Button>
           </div>
-          <Button
-            variant="primary"
-            size="lg"
-            block
-            disabled={this.state.encodeButton.disabled}
-            onClick={this.handleClickEncode}
-          >
-            {this.state.encodeButton.label}
-          </Button>
+          <Footer />
         </div>
       );
     }
