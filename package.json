@@ -11,7 +11,7 @@
     "@types/react-dom": "16.8.4",
     "@types/reactstrap": "^8.0.1",
     "bn.js": "^4.11.8",
-    "node-sass": "^4.12.0",
+    "node-sass": "^7.0.0",
     "react": "^16.8.6",
     "react-bootstrap": "^1.0.0-beta.8",
     "react-dom": "^16.8.6",
